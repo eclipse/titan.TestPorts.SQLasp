@@ -1,0 +1,180 @@
+/******************************************************************************
+* Copyright (c) 2012, 2014  Ericsson AB
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+*  Gabor Szalai - initial implementation and initial documentation
+*  Zoltan Medve
+*  Janos Kovesdi
+******************************************************************************/
+
+module SQL_demo {
+
+import from SQL_PortTypes all;
+ 
+  type component MySQL_CT{
+    port SQLasp_PT MySQL_PT;
+    var SQL_Connection vl_conn:={
+    MySQL_engine,
+      {
+        {"host","demohost"},
+        {"user","demo"},
+        {"password","demopassword"},
+        {"database","demo"},
+        {"port","3306"},
+        {"char_set","utf8"}
+      }
+    };
+    var SQL_Result v_result;
+    var SQL_Query_result v_query_result;
+    var SQL_exception v_exception;
+    var integer v_connId;
+    var universal charstring v_sql; 
+  }//MySQL_CT
+
+
+  type component SQLite_CT {
+    port SQLasp_PT SQLite_PT;
+    var SQL_Connection v_connection := {
+    SQlite_engine,
+      {
+	      {"database", "./example.db"}
+      }
+    };
+    var SQL_Result v_result;
+    var SQL_Query_result v_query_result;
+    var SQL_exception v_exception;
+    var integer v_connId;
+    var universal charstring v_sql; 
+  }//SQLite_CT  
+  
+  
+  
+  function f_sqlite_connect() runs on SQLite_CT return boolean{
+    SQLite_PT.call( S_SQL_connect:{v_connection} ){
+      [] SQLite_PT.getreply(S_SQL_connect:{?}) -> value v_result{
+        v_connId := v_result.connId;
+        log("ConnID: ",v_connId);
+      }
+      [] SQLite_PT.catch( S_SQL_connect, SQL_exception:?) -> value v_exception{
+        log("Conn exception: ", v_exception);
+        return false;
+      } 
+    }
+    
+    return true;
+  }
+  
+  function f_sqlite_query(in charstring pl_query) runs on SQLite_CT return boolean{
+    SQLite_PT.call( S_SQL_Query:{v_connId, pl_query}){
+      [] SQLite_PT.getreply(S_SQL_Query:{?,?}) -> value v_query_result{
+        log("Query result: ", v_query_result);
+      }
+      [] SQLite_PT.catch(S_SQL_Query, SQL_exception:?) -> value v_exception {
+        log("Query exception: ", v_exception);
+        return false;
+      }
+    }
+    
+    return true;
+  }
+  
+  function f_sqlite_disconnect() runs on SQLite_CT return boolean{
+    SQLite_PT.call( S_SQL_disconnect:{v_connId}){
+      [] SQLite_PT.getreply(S_SQL_disconnect:{?}) -> value v_result{
+        log("Disconnect result: ", v_result);
+      }
+      [] SQLite_PT.catch(S_SQL_disconnect, SQL_exception:?) -> value v_exception {
+        log("Disconnect exception: ", v_exception);
+        return false;
+      }
+    }
+    
+    return true
+  }
+  
+  function f_mysql_connect() runs on MySQL_CT return boolean{
+    MySQL_PT.call( S_SQL_connect:{vl_conn} ){
+      [] MySQL_PT.getreply(S_SQL_connect:{?}) -> value v_result{
+        v_connId := v_result.connId;
+        log("ConnID: ",v_connId);
+      }
+      [] MySQL_PT.catch( S_SQL_connect, SQL_exception:?) -> value v_exception{
+        log("Conn exception: ", v_exception);
+        return false;
+      } 
+    }
+    
+    return true;
+  }
+  
+  function f_mysql_query(in charstring pl_query) runs on MySQL_CT return boolean{
+    MySQL_PT.call( S_SQL_Query:{v_connId, pl_query}){
+      [] MySQL_PT.getreply(S_SQL_Query:{?,?}) -> value v_query_result{
+        log("Query result: ", v_query_result);
+      }
+      [] MySQL_PT.catch(S_SQL_Query, SQL_exception:?) -> value v_exception {
+        log("Query exception: ", v_exception);
+        return false;
+      }
+    }
+    
+    return true;
+  }
+  
+  function f_mysql_disconnect() runs on MySQL_CT return boolean{
+    MySQL_PT.call( S_SQL_disconnect:{v_connId}){
+      [] MySQL_PT.getreply(S_SQL_disconnect:{?}) -> value v_result{
+        log("Disconnect result: ", v_result);
+      }
+      [] MySQL_PT.catch(S_SQL_disconnect, SQL_exception:?) -> value v_exception {
+        log("Disconnect exception: ", v_exception);
+        return false;
+      }
+    }
+    
+    return true
+  }
+  
+  
+  
+  testcase MySQL_Test_Demo() runs on  MySQL_CT {
+    map(self:MySQL_PT,system:MySQL_PT);
+    
+    if(not f_mysql_connect()){
+      setverdict(fail);
+    }
+    
+    f_mysql_query("SELECT * FROM demo_table");
+    
+    log(v_query_result);
+    
+    f_mysql_disconnect();
+  
+    unmap(self:MySQL_PT,system:MySQL_PT);
+    setverdict(pass);
+  }//MySQL_Test_Demo 
+  
+  
+  testcase SQLite_Test_Demo() runs on  SQLite_CT {
+    map(self:SQLite_PT,system:SQLite_PT);
+    
+    if(not f_sqlite_connect()){
+      setverdict(fail);
+    }
+    
+    f_sqlite_query("SELECT * FROM demo_table");
+    log(v_query_result);
+    
+    f_sqlite_disconnect();
+  
+    unmap(self:SQLite_PT,system:SQLite_PT);
+    
+    setverdict(pass);
+  }//SQLite_Test_Demo
+
+
+} // end of module

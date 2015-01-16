@@ -1,0 +1,115 @@
+/******************************************************************************
+* Copyright (c) 2012, 2014  Ericsson AB
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+*  Gabor Szalai - initial implementation and initial documentation
+*  Zoltan Medve
+*  Janos Kovesdi
+******************************************************************************/
+//
+//  File:               SQL_PortTypes.ttcn
+//  Description:        SQL test port source
+//  Rev:                R4A
+//  Prodnr:             CNL 113 760
+// 
+
+module SQL_PortTypes{
+
+signature S_SQL_connect(in SQL_Connection pl_conn) return SQL_Result exception (SQL_exception);
+
+signature S_SQL_Query(in integer connId, in SQL_Query pl_query)  return SQL_Query_result exception (SQL_exception)
+
+signature S_SQL_disconnect(in integer connId)  return SQL_Result exception (SQL_exception);
+
+type enumerated  SQL_Result_Code {SQL_OK, SQL_ERROR};
+
+type record SQL_Result {
+  integer   connId,
+  SQL_Result_Code result_code
+}
+
+type record SQL_exception {
+  integer error_code,
+  // 0- no error
+  // 1- the engine is not available
+  // 2- no such database connection
+  // 3- Engine initialization error
+  // 4- SQL Connect error
+  // 5- Not connected
+  // 6- SQL query error
+  // 7- Other SQL engine error
+  charstring error_text
+}
+
+type record SQL_Query_result {
+  integer   connId,
+  integer   affected_rows,
+  SQL_Query_Result_data  data optional
+}
+
+type record of SQL_Query_result SQL_Query_Result_Record;
+
+type record SQL_Connection_parameter{
+  charstring param_name,
+  charstring param_value
+}
+
+type record of SQL_Connection_parameter SQL_Connection_parameters;
+
+type record SQL_Connection{
+  SQL_engine_type           engine,
+  SQL_Connection_parameters parameters
+}
+
+type enumerated SQL_engine_type { SQlite_engine(1), MySQL_engine(2) }
+
+type universal charstring SQL_Query;
+
+type record of SQL_Query_Result_row SQL_Query_Result_data;
+
+type record of SQL_Query_Result_field SQL_Query_Result_row;
+
+type record of SQL_Query SQL_Rollback_Queries;
+
+
+type union SQL_Query_Result_field_data{
+  universal charstring text,
+  integer              int_data,
+  float                real_data,
+  octetstring          binary_data,
+  bitstring            bitstring_data,
+  SQL_null_value_type  null_value
+}
+
+
+type record SQL_null_value_type {}
+
+type record SQL_Query_Result_field {
+  charstring                    field_name optional,// only the first row contains field names
+  SQL_Query_Result_field_data   field_data optional // omit means NULL
+}
+
+type record of SQL_Primary_Key SQL_Primary_Keys;
+
+type record SQL_Primary_Key {
+  charstring        table_name,
+  charstring        column_name
+}
+
+
+type port SQLasp_PT procedure {
+  out S_SQL_connect;
+  out S_SQL_Query;
+  out S_SQL_disconnect;
+}
+
+} with {
+  extension "requiresTITAN CRL 113 200/1 R8H"
+  extension "version R4A" 
+}
+
+

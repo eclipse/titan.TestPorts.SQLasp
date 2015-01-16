@@ -1,0 +1,544 @@
+/******************************************************************************
+* Copyright (c) 2012, 2014  Ericsson AB
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+*  Gabor Szalai - initial implementation and initial documentation
+*  Zoltan Medve
+*  Janos Kovesdi
+******************************************************************************/
+//
+//  File:               SQL_Functions.ttcn
+//  Description:        
+//  Rev:                R4A
+//  Prodnr:             CNL 113 760
+//
+//
+module SQL_Functions {
+
+import from SQL_PortTypes all;
+
+external function ef_SQL_Execute (in charstring pl_sql_file,
+  inout SQLasp_PT pl_sqlPort,
+  in integer pl_connId,
+  in SQL_Primary_Keys pl_primary_keys,
+  out SQL_Rollback_Queries pl_result,
+  out SQL_Query_Result_Record pl_result_record) return boolean;
+
+
+private type record SQL_Rollback_Parameters {
+  integer                     connId,
+  SQL_Query                   select_query,
+  SQL_Query                   original_query,
+  SQL_Primary_Keys            primary_keys,
+  universal charstring        table_name
+}
+
+private type record of charstring CharstringList; 
+
+//from the last
+function f_SQL_Rollback(inout SQLasp_PT pl_sqlPort,
+  in integer pl_connId,
+  inout SQL_Rollback_Queries pl_queries) {
+
+  var SQL_Rollback_Queries vl_result := {};
+  var integer vl_i := 0;
+  var integer vl_size := sizeof(pl_queries);
+  var SQL_exception vl_exception;
+
+  for(vl_i := vl_size-1; vl_i >= 0; vl_i := vl_i - 1) {
+    pl_sqlPort.call(S_SQL_Query:{pl_connId, pl_queries[vl_i]}) {
+      [] pl_sqlPort.getreply(S_SQL_Query:{?,?}); 
+      [] pl_sqlPort.catch (S_SQL_Query, SQL_exception:?) -> value vl_exception {
+
+        var integer vl_j;
+        log("Rollback exception: ", vl_exception);
+        log("Query: ", pl_queries[vl_i]);
+        log("Your database is inconsistent. You should backup with mysqldump or try again with the remaining queries");
+
+        for (vl_j := vl_i; vl_j >= 0; vl_j := vl_j - 1){
+          vl_result[sizeof(vl_result)] := pl_queries[vl_j];
+        }
+      }
+    }
+  }
+
+  pl_queries := vl_result;
+
+}//f_SQL_Rollback
+
+function f_connect(
+  inout SQLasp_PT pl_port,
+  in SQL_Connection pl_connection,
+  out SQL_Result pl_result,
+  out SQL_exception pl_exception
+) return boolean {
+
+  pl_port.call( S_SQL_connect:{pl_connection} ){
+    [] pl_port.getreply(S_SQL_connect:{?}) -> value pl_result{}
+    [] pl_port.catch( S_SQL_connect, SQL_exception:?) -> value pl_exception{
+      return false;
+    } 
+  }
+
+  return true;
+}//f_connect
+
+function f_query(
+  inout SQLasp_PT pl_port,
+  in integer pl_connId,
+  in SQL_Query pl_query,
+  out SQL_Query_result pl_result,
+  out SQL_exception pl_exception
+) return boolean {
+
+  pl_port.call( S_SQL_Query:{pl_connId, pl_query}){
+    [] pl_port.getreply(S_SQL_Query:{?,?}) -> value pl_result{}
+    [] pl_port.catch(S_SQL_Query, SQL_exception:?) -> value pl_exception {
+      return false;
+    }
+  }
+
+  return true;
+}//f_query
+
+function f_disconnect(
+  inout SQLasp_PT pl_port,
+  in integer pl_connId,
+  out SQL_Result pl_result,
+  out SQL_exception pl_exception
+) return boolean {
+
+  pl_port.call( S_SQL_disconnect:{pl_connId}){
+    [] pl_port.getreply(S_SQL_disconnect:{?}) -> value pl_result{}
+    [] pl_port.catch(S_SQL_disconnect, SQL_exception:?) -> value pl_exception {
+      return false;
+    }
+  }
+
+  return true
+}//f_disconnect
+
+private function f_getRollback_Delete(
+  inout SQLasp_PT                   pl_port,
+  in SQL_Rollback_Parameters        pl_parameters,
+  inout SQL_Rollback_Queries          pl_result,
+  inout SQL_Query_Result_Record       pl_result_record,
+  inout boolean                     pl_exception_received
+) {
+
+  var SQL_Query_result vl_select_result;
+  var SQL_Query_result vl_delete_result;
+  var SQL_exception vl_exception;
+  var integer vl_result_size := sizeof(pl_result);
+  var integer vl_result_record_size := sizeof(pl_result_record);
+  var integer vl_connId := pl_parameters.connId;
+
+  if(f_query(pl_port, vl_connId, pl_parameters.select_query, vl_select_result, vl_exception)){
+    if(ispresent(vl_select_result.data)){
+      if(f_query(pl_port, vl_connId, pl_parameters.original_query, vl_delete_result, vl_exception) ) {
+        var integer vl_rows := sizeof(vl_select_result.data);
+        var integer vl_i;
+        var universal charstring vl_table_name := pl_parameters.table_name;
+        for(vl_i := 0; vl_i < vl_rows; vl_i := vl_i + 1) {
+          pl_result[vl_result_size + vl_i] := "INSERT INTO " & vl_table_name & 
+          " VALUES(" & f_joinResultFields(vl_select_result.data[vl_i], ",") & ");";
+        }
+
+        pl_result_record[vl_result_record_size] := vl_delete_result;
+
+      }else{pl_exception_received := true;}
+    }//the result can be empty
+  }else{pl_exception_received := true;}
+}//f_getrollback_delete
+
+private function f_getRollback_Insert(
+  inout                             SQLasp_PT pl_port,
+  in SQL_Rollback_Parameters        pl_parameters,
+  in universal charstring           pl_select_after_insert,
+  inout SQL_Rollback_Queries          pl_result,
+  inout SQL_Query_Result_Record       pl_result_record,
+  inout boolean                     pl_exception_received
+) {
+
+  var SQL_Query_result vl_select_result;
+  var SQL_Query_result vl_select2_result;
+  var SQL_Query_result vl_insert_result;
+  var SQL_exception vl_exception;
+  var integer vl_result_size := sizeof(pl_result);
+  var integer vl_result_record_size := sizeof(pl_result_record);
+  var integer vl_connId := pl_parameters.connId;
+  var universal charstring vl_table_name := pl_parameters.table_name;
+  var charstring vl_primary_key := f_getPrimary_key(pl_parameters.primary_keys, vl_table_name);
+
+  if(f_query(pl_port, vl_connId, pl_parameters.select_query, vl_select_result, vl_exception) and 
+    f_query(pl_port, vl_connId, pl_parameters.original_query, vl_insert_result, vl_exception) and 
+    f_query(pl_port, vl_connId, pl_select_after_insert, vl_select2_result, vl_exception)) {
+    var SQL_Query_Result_data vl_difference 
+
+    if(ispresent(vl_select_result.data) and vl_primary_key != "*") {
+      vl_difference := f_getDifference(vl_select2_result.data, vl_select_result.data, vl_primary_key);
+    } else {
+      vl_difference := vl_select2_result.data;
+    }
+    if(vl_primary_key != "*"){
+      var integer vl_difference_size := sizeof(vl_difference);
+      var integer vl_i;
+
+      for(vl_i := 0; vl_i < vl_difference_size; vl_i := vl_i + 1) {
+        pl_result[vl_result_size + vl_i] := "DELETE FROM " & vl_table_name & 
+        " WHERE " & vl_primary_key & "=" & f_getFieldDataString(vl_difference[vl_i][0].field_data) & ";";  
+      }
+    } else {
+      pl_result[vl_result_size] := "DELETE FROM " & vl_table_name & 
+      " WHERE " & f_getWhereCondition(vl_difference) & ";";  
+    }
+    pl_result_record[vl_result_record_size] := vl_insert_result;
+  }
+  else {pl_exception_received := true;}
+}//f_getRollback_Insert
+
+private function f_getWhereCondition(in SQL_Query_Result_data pl_diff) return charstring{
+   var integer vl_difference_size := sizeof(pl_diff[0]);
+   var charstring vl_result := "";
+    
+   for(var integer vl_i := 0; vl_i < vl_difference_size; vl_i := vl_i + 1) {
+     if(vl_i != 0){vl_result := vl_result & " and ";}
+     vl_result := vl_result & pl_diff[0][vl_i].field_name & "=" & f_getFieldDataString(pl_diff[0][vl_i].field_data);
+   }
+   
+   return vl_result;
+}
+
+private function f_getRollback_Update(
+  inout SQLasp_PT                   pl_port,
+  in SQL_Rollback_Parameters        pl_parameters,
+  inout SQL_Rollback_Queries          pl_result,
+  inout SQL_Query_Result_Record       pl_result_record,
+  inout boolean                     pl_exception_received
+) {
+
+  var SQL_Query_result vl_select_result;
+  var SQL_Query_result vl_update_result;
+  var SQL_exception vl_exception;
+
+  var integer vl_result_size := sizeof(pl_result);
+  var integer vl_connId := pl_parameters.connId;
+  var universal charstring vl_table_name := pl_parameters.table_name;
+  var charstring vl_primary_key := f_getPrimary_key(pl_parameters.primary_keys, vl_table_name);
+
+  if(f_query(pl_port, vl_connId, pl_parameters.select_query, vl_select_result, vl_exception)){
+    if(ispresent(vl_select_result.data)){
+      if(f_query(pl_port, vl_connId, pl_parameters.original_query, vl_update_result, vl_exception)) {
+
+        var integer vl_i;
+        var CharstringList vl_columns := f_getColumnNames(vl_select_result);
+        var integer vl_resultSetSize := sizeof(vl_select_result.data);
+        var integer vl_keyIndex := f_getKey_Index(vl_select_result.data[0], vl_primary_key);
+
+        for(vl_i := 0; vl_i < vl_resultSetSize; vl_i := vl_i + 1) {
+          var SQL_Query_Result_row vl_row := vl_select_result.data[vl_i];
+          var charstring vl_values := f_getUpdateValues(vl_columns, vl_row);
+          
+          if(vl_keyIndex >= 0){
+            pl_result[vl_result_size + vl_i] := "UPDATE " & vl_table_name & 
+            " SET " & vl_values & " WHERE " & vl_primary_key & "=" & f_getFieldDataString(vl_row[vl_keyIndex].field_data) & ";"; 
+          } else {
+            pl_result[vl_result_size + vl_i] := "UPDATE " & vl_table_name & " SET " & vl_values & ";"; 
+          }
+
+        }
+
+        pl_result_record[sizeof(pl_result_record)] := vl_update_result;
+      }else {pl_exception_received := true;}
+    }//empty data
+  }else {pl_exception_received := true;}
+}//f_getRollback_Update
+
+
+//only use when SELECT $prmary_key FROM $table ORDER BY 1 ASC;
+private function f_getDifference(in SQL_Query_Result_data pl_new_rows,
+  in SQL_Query_Result_data pl_original_rows, 
+  in universal charstring pl_primary_key) return SQL_Query_Result_data {
+
+  var SQL_Query_Result_data vl_result := {};
+
+  var integer vl_i;
+  var integer vl_size := sizeof(pl_new_rows);
+
+  if(vl_size > 0) {
+    var integer vl_primar_key_index := f_getKey_Index(pl_original_rows[0], pl_primary_key);
+    if(vl_primar_key_index > -1) {
+      for(vl_i := 0; vl_i < vl_size; vl_i := vl_i + 1) {
+        if(f_isInteger(pl_new_rows[vl_i][0].field_data)) {
+          if(not f_containsInteger(pl_original_rows, pl_new_rows[vl_i][0].field_data.int_data)) {
+            vl_result[sizeof(vl_result)] := pl_new_rows[vl_i];
+          }
+        }
+        else {
+          if(not f_contains(pl_original_rows, f_getFieldDataString(pl_new_rows[vl_i][0].field_data))) {
+            vl_result[sizeof(vl_result)] := pl_new_rows[vl_i];
+          }  
+        }
+
+
+      }//for i  
+
+    }//if vl_primar_key_index > -1
+  }//if vl_size > 0
+
+  return vl_result;
+}//f_getDifference
+
+//binary search in an ordered list use only when only primary key selected in the pl_record
+private function f_contains(in SQL_Query_Result_data pl_record, charstring pl_data) return boolean {
+  var integer vl_end := sizeof(pl_record) - 1;
+  var integer vl_start := 0;
+  var integer vl_middle := vl_end/2;
+
+  while(vl_start <= vl_end) {
+    var charstring vl_field_data := f_getFieldDataString(pl_record[vl_middle][0].field_data);
+    var integer vl_strcmp := ef_SQL_strcmp(vl_field_data, pl_data);
+    if(vl_strcmp < 0) {
+      vl_start := vl_middle + 1;
+    } 
+    else if(vl_strcmp == 0) {
+      return true;
+    }
+    else {
+      vl_end := vl_middle - 1;
+    }
+
+    vl_middle := (vl_start + vl_end)/2;
+  }
+
+  return false;
+}//f_contains
+
+private function f_containsInteger(in SQL_Query_Result_data pl_record, integer pl_data) return boolean {
+  var integer vl_end := sizeof(pl_record) - 1;
+  var integer vl_start := 0;
+  var integer vl_middle := vl_end/2;
+
+  while(vl_start <= vl_end) {
+    var integer vl_field_data := pl_record[vl_middle][0].field_data.int_data;
+    if(vl_field_data < pl_data) {
+      vl_start := vl_middle + 1;
+    } 
+    else if(vl_field_data == pl_data) {
+      return true;
+    }
+    else {
+      vl_end := vl_middle - 1;
+    }
+
+    vl_middle := (vl_start + vl_end)/2;
+  }
+
+  return false;
+}//f_containsInteger
+
+private function f_isInteger(in SQL_Query_Result_field_data pl_field) return boolean {
+  return ischosen(pl_field.int_data);
+}//f_isInteger
+
+private function f_getKey_Index(in SQL_Query_Result_row pl_row, 
+  in universal charstring pl_primary_key) return integer {
+  var integer vl_result := -1;
+  var integer vl_i;
+  var integer vl_row_size := sizeof(pl_row);
+  var boolean vl_do := true;
+
+  for(vl_i := 0; vl_do and vl_i < vl_row_size; vl_i := vl_i + 1) {
+    if(pl_row[vl_i].field_name == pl_primary_key) {
+      vl_result := vl_i;
+      vl_do := false;
+    }
+  }
+
+  return vl_result;
+}//f_getKey_Index
+
+private function f_getFieldDataString(in SQL_Query_Result_field_data pl_field) return charstring {
+  var charstring vl_result;
+
+  if(ischosen(pl_field.text)) {
+    vl_result := "'" & unichar2char(pl_field.text) & "'";
+  }
+  else if(ischosen(pl_field.int_data)) {
+    vl_result := int2str(pl_field.int_data);
+  }
+  else if(ischosen(pl_field.real_data)) {
+    vl_result := float2str(pl_field.real_data);  
+  }
+  else if(ischosen(pl_field.binary_data)) {
+    vl_result := "'" & oct2str(pl_field.binary_data) & "'";
+  }
+  else if(ischosen(pl_field.bitstring_data)) {
+    vl_result := "'" & bit2str(pl_field.bitstring_data) & "'";
+  }
+  else if(ischosen(pl_field.null_value)) {
+    vl_result := "NULL";
+  }
+
+  return vl_result;
+}//f_getFieldString
+
+
+private function f_joinResultFields(in SQL_Query_Result_row pl_row, 
+  in charstring pl_delimiter) return universal charstring {
+
+  var integer vl_i;
+  var integer vl_size := sizeof(pl_row);
+  var universal charstring vl_result := "";
+
+  if(vl_size >= 1) {
+    vl_result := f_getFieldDataString(pl_row[0].field_data);  
+  } else {
+    return vl_result;
+  }
+
+  for(vl_i := 1; vl_i < vl_size; vl_i := vl_i + 1) {
+    vl_result := vl_result & pl_delimiter & f_getFieldDataString(pl_row[vl_i].field_data);
+  }  
+
+  return vl_result;
+}//f_joinResultFields
+
+private function f_getPrimary_key(in SQL_Primary_Keys pl_keys, 
+  in universal charstring pl_table_name) return charstring {
+
+  var charstring vl_result := "*";
+  var integer vl_i;
+  var integer vl_size := sizeof(pl_keys);
+  var boolean vl_do := true;
+
+  for(vl_i := 0; vl_do and vl_i < vl_size; vl_i := vl_i + 1) {
+    if(pl_keys[vl_i].table_name == pl_table_name) {
+      vl_do := false;
+      vl_result := pl_keys[vl_i].column_name;
+    }
+  }
+
+  return vl_result;
+}//f_getPrimary_key
+
+private function f_SQL_split(in charstring pl_string, in charstring pl_delimiter) return CharstringList {
+  var CharstringList vl_result := {};
+  var integer vl_i;
+  var integer vl_string_length := lengthof(pl_string);
+  var integer vl_start := 0;
+  var integer vl_open_parentheses := 0;
+  var integer vl_close_parentheses := 0;
+  var integer vl_length := vl_string_length - 1;
+  var boolean vl_inString := false;
+
+  for(vl_i := 0; vl_i < vl_string_length; vl_i := vl_i + 1) {
+
+    if(pl_string[vl_i] == "(") {
+      vl_open_parentheses := vl_open_parentheses + 1;
+    } else if (pl_string[vl_i] == ")") {
+      vl_close_parentheses := vl_close_parentheses + 1;
+
+      //Check if the found value is a string
+    } else if (pl_string[vl_i] == "'") {
+      vl_inString := not vl_inString;
+    } else if (pl_string[vl_i] == "\\" and vl_inString) {
+      vl_i := vl_i + 1; //Skip escaped character in string
+    }
+
+
+    else if(vl_open_parentheses == vl_close_parentheses and pl_string[vl_i] == pl_delimiter and not vl_inString) {
+      vl_length := vl_i - vl_start;
+      var charstring vl_substr := substr(pl_string, vl_start, vl_length);
+      if(vl_substr != "") {
+        vl_result[sizeof(vl_result)] := vl_substr;    
+      }
+
+      vl_start := vl_i + 1; 
+    }
+
+  }
+
+  if(vl_start != vl_string_length) {
+    vl_result[sizeof(vl_result)] := substr(pl_string, vl_start, (vl_string_length - vl_start));
+  }
+
+  return vl_result;
+}//f_SQL_split
+
+private function f_SQL_getWHERE(in CharstringList pl_columns, in CharstringList pl_values) return charstring {
+  var charstring vl_result := "WHERE ";
+  var integer vl_last_index := sizeof(pl_columns)-1;
+  var integer vl_i;
+
+  if(vl_last_index > -1) {
+    //skip the last name-value
+    for(vl_i := 0; vl_i < vl_last_index; vl_i := vl_i + 1) {
+      var charstring vl_value := pl_values[vl_i];
+      if(vl_value != "NULL") {
+        vl_result := vl_result & pl_columns[vl_i] & "=" & vl_value & " AND ";
+      }
+      else {
+        vl_result := vl_result & pl_columns[vl_i] & " IS NULL "
+      }
+    }
+    //add the last
+    if(pl_values[vl_last_index] != "NULL") {
+      vl_result := vl_result & pl_columns[vl_last_index] & "=" & pl_values[vl_last_index];
+    } else {
+      vl_result := vl_result & pl_columns[vl_last_index] & " IS NULL";
+    } 
+  } else {
+    vl_result := "";
+  }
+
+  return vl_result;
+}//f_SQL_getWHERE
+
+private function f_getColumnNames(in SQL_Query_result pl_resultSet) return CharstringList {
+  var CharstringList vl_result := {};
+  var integer vl_resultSetSize := sizeof(pl_resultSet.data);
+
+  if(vl_resultSetSize > 0) {
+    var integer vl_i;
+    var integer vl_fieldCount := sizeof(pl_resultSet.data[0]);
+    for(vl_i := 0; vl_i < vl_fieldCount; vl_i := vl_i + 1) {
+      vl_result[sizeof(vl_result)] := pl_resultSet.data[0][vl_i].field_name;
+    }
+  }
+
+  return vl_result;
+}//f_getColumnNames
+
+private function f_getUpdateValues(in CharstringList pl_columns, 
+  in SQL_Query_Result_row pl_row) return charstring {
+  var charstring vl_result := "";
+  var integer vl_lastIndex := sizeof(pl_columns)-1;
+
+  if(vl_lastIndex > -1) {  
+    var integer vl_i;
+    //skip the last  
+    for(vl_i := 0; vl_i < vl_lastIndex; vl_i := vl_i + 1) {
+      vl_result := vl_result & pl_columns[vl_i] & "=" & f_getFieldDataString(pl_row[vl_i].field_data) & ",";
+    }
+    //last
+    vl_result := vl_result & pl_columns[vl_lastIndex] & "=" & f_getFieldDataString(pl_row[vl_lastIndex].field_data);
+  }
+
+  return vl_result;
+}//f_getUpdateValues
+
+//A value greater than zero indicates that the first character that does not 
+//match has a greater value in str1 than in str2; And a value less than zero indicates the opposite.
+private external function ef_SQL_strcmp(in charstring pl_string1, in charstring pl_string2) return integer;
+
+
+}//end of module
+with {
+extension "version R4A"
+}
+

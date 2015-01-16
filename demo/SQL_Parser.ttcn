@@ -1,0 +1,150 @@
+/******************************************************************************
+* Copyright (c) 2012, 2014  Ericsson AB
+* All rights reserved. This program and the accompanying materials
+* are made available under the terms of the Eclipse Public License v1.0
+* which accompanies this distribution, and is available at
+* http://www.eclipse.org/legal/epl-v10.html
+*
+* Contributors:
+*  Gabor Szalai - initial implementation and initial documentation
+*  Zoltan Medve
+*  Janos Kovesdi
+******************************************************************************/
+module SQL_Parser {
+  import from SQL_PortTypes all;
+  import from SQL_Functions all;
+  
+  modulepar {
+    charstring tsp_sqlfile := "example.sql";
+  }
+ 
+  type component SQL_CT {
+    port SQLasp_PT v_mysql_PT;
+    var SQL_Result v_result;
+    var SQL_Query_result v_query_result;
+    var SQL_exception v_exception;
+    var SQL_Rollback_Queries v_rollback_queries;
+    var SQL_Query_Result_Record v_result_record;
+    var SQL_Connection v_connection := {
+      MySQL_engine,
+      {
+        {"host", "127.0.0.1"},
+        {"port", "3306"},
+        {"user", "username"},
+        {"password", "password"},
+        {"database", "database"},
+        {"char_set", "utf8"},
+        {"auto_reconnect", "true"}
+      }
+    }//connection
+  }//SQL_CT
+  
+  template SQL_Rollback_Queries t_SQL_Rollback_Queries := {
+    "INSERT INTO parsertest VALUES(2,'john doe 2',25,'message available');",
+    pattern "DELETE FROM parsertest WHERE id=\d+;",
+    pattern "UPDATE parsertest SET id=\d+,name='john doe 2',age=11,message=NULL WHERE id=\d+;"
+  }//t_SQL_Rollback_Queries
+  
+  template SQL_Query_result t_initial_state := {
+    connId := ?,
+    affected_rows := 2,
+    data := {
+      {
+        {field_name := "id", field_data := {int_data := 1}},
+        {field_name := "name" , field_data := {text := "anonymous"}},
+        {field_name := "age" , field_data := {int_data := 20}},
+        {field_name := "message" , field_data := {null_value := {}}}
+      },
+      {
+        {field_name := omit, field_data := {int_data := 2}},
+        {field_name := omit, field_data := {text := "john doe"}},
+        {field_name := omit, field_data := {int_data := 25}},
+        {field_name := omit, field_data := {text := "message available"}}
+      }
+    }
+  }//t_initial_state
+  
+  template SQL_Query_Result_Record t_expected_result_record := {
+    {
+      //DELETE FROM parsertest WHERE age > 20 AND age <= 25 ORDER BY id ASC;
+      connId := ?,
+      affected_rows := 1,
+      data := omit
+    },
+    {
+      //INSERT INTO parsertest (name,age, message) VALUES('john doe 2',11, NULL);
+      connId := ?,
+      affected_rows := 1,
+      data := omit
+    },
+    {
+      //UPDATE parsertest SET name='john doe 3' WHERE name='john doe 2';
+      connId := ?,
+      affected_rows := 1,
+      data := omit
+    }
+  }//t_expected_result_record
+  
+   
+  testcase tc_demo() runs on SQL_CT {
+    map(self:v_mysql_PT, system: v_mysql_PT);
+    
+    if(f_connect(v_mysql_PT, v_connection, v_result, v_exception)){
+      log("Query: ", f_query(v_mysql_PT, v_result.connId, "SELECT * FROM parsertest;", v_query_result, v_exception));
+      log("Result: ", v_query_result);
+      
+      if(match(v_query_result, t_initial_state)) {
+        log("Initial state is ok");
+      } else {
+        log(match(v_query_result, t_initial_state));
+        setverdict(fail);
+      }
+      
+      var SQL_Primary_Keys vl_keys := {{"parsertest", "id"}};
+      
+      if(ef_SQL_Execute(tsp_sqlfile, v_mysql_PT, v_result.connId, vl_keys, v_rollback_queries, v_result_record)) {
+        log("Rollback queries: ", v_rollback_queries);
+        log("Result record: ", v_result_record);
+      } else {
+        setverdict(fail);
+      }
+      
+      if(match(v_rollback_queries, t_SQL_Rollback_Queries)) {
+        log("RollbackQueries ok.");
+        f_SQL_Rollback(v_mysql_PT, v_result.connId, v_rollback_queries);
+        f_query(v_mysql_PT, v_result.connId, "SELECT * FROM parsertest;", v_query_result, v_exception);
+        
+        if(match(v_query_result, t_initial_state)) {
+          log("Initial state is back");
+        } else {
+          log("", match(v_query_result, t_initial_state));
+          setverdict(fail);
+        }
+        if(match(v_result_record, t_expected_result_record)) {
+          log("Result record is ok");
+        } else {
+          log(match(v_result_record, t_expected_result_record));
+          setverdict(fail);
+        }
+      } else {
+        log(match(v_rollback_queries, t_SQL_Rollback_Queries));
+        setverdict(fail);
+      }
+      
+      log("Disconnect: ", f_disconnect(v_mysql_PT, v_result.connId, v_result, v_exception));
+    }//if connect
+    else {
+      setverdict(fail);
+    }
+    
+    setverdict(pass);
+    
+
+    unmap(self:v_mysql_PT, system: v_mysql_PT);
+  }//tc_demo
+  
+  control {
+    execute(tc_demo());
+  }
+  
+} // end of module
