@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
- Copyright (c) 2014 Ericsson
+ Copyright (c) 2015 Ericsson
 
   All rights reserved. This program and the accompanying materials
   are made available under the terms of the Eclipse Public License v1.0
@@ -10,10 +10,8 @@
 
    File:               SQLasp_CNL113760.tpd
    Description:        tpd project file
-   Rev:                R4A
+   Rev:                R5B
    Prodnr:             CNL 113 760
-   Updated:            2014-09-24
-   Contact:            http://ttcn.ericsson.se
 
  -->
 <TITAN_Project_File_Information version="1.0">

@@ -13,7 +13,7 @@
 //
 //  File:               SQLasp_PT.cc
 //  Description:        SQL test port source
-//  Rev:                R4A
+//  Rev:                R5B
 //  Prodnr:             CNL 113 760
 // 
 
@@ -251,10 +251,12 @@ void SQLasp__PT::outgoing_call(const S__SQL__Query_call& call_par)
   }
   TTCN_Buffer utf8_query;
   call_par.pl__query().encode_utf8(utf8_query);
+  // add null terminator
+  utf8_query.put_c('\0');
   SQL_result_data res;
   SQL_error err;
   if(!(connections[conn_id]->execute_sql_command(utf8_query.get_data(),
-                                                 utf8_query.get_len(),
+                                                 utf8_query.get_len()-1,
                                                  res,err))){
     S__SQL__Query_reply reply;
     SQL__Query__result& q_res=reply.return_value();;

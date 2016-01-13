@@ -13,7 +13,7 @@
 //
 //  File:               SQL_PortTypes.ttcn
 //  Description:        SQL test port source
-//  Rev:                R4A
+//  Rev:                R5B
 //  Prodnr:             CNL 113 760
 // 
 
@@ -65,7 +65,7 @@ type record SQL_Connection{
   SQL_Connection_parameters parameters
 }
 
-type enumerated SQL_engine_type { SQlite_engine(1), MySQL_engine(2) }
+type enumerated SQL_engine_type { SQlite_engine(1), MySQL_engine(2), Oracle_engine(3) }
 
 type universal charstring SQL_Query;
 
@@ -109,7 +109,7 @@ type port SQLasp_PT procedure {
 
 } with {
   extension "requiresTITAN CRL 113 200/1 R8H"
-  extension "version R4A" 
+  extension "version R5B" 
 }
 
 

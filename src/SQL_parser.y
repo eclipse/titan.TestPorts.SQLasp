@@ -14,7 +14,7 @@
 ******************************************************************************/
 //
 //  File:               SQL_parser.y
-//  Rev:                R4A
+//  Rev:                R5B
 //  Prodnr:             CNL 113 760
 //  Updated:            2014-06-04
 //
@@ -603,8 +603,8 @@ expression: '(' expression ')' {
   
   | USERVAR { $$ = $1; }
   | STRING 	{ 
-  		$1 = strdup(replace_ENV_VAR($1));
-		$$ = $1;
+  		$$ = replace_ENV_VAR($1);
+		free($1);
   	}	
   | INTNUM { 
     $$ = strdup(int2str($1));
@@ -966,10 +966,11 @@ char* replace_ENV_VAR(char* string){
 	char* temp;
 	char* value;
 	int len;
+  char* temp2=NULL;
 	
 	temp = strstr(string, "$");
 	if(temp == NULL){ 
-		return string; //No enviroment variable
+		return strdup(string); //No enviroment variable
 	} else {
 		result = CHARSTRING(temp-string,string);
 		temp++; //skip '$' sign
@@ -988,17 +989,20 @@ char* replace_ENV_VAR(char* string){
 				if(var != NULL){
 					temp++; //skip '}' sign
 					//insert value and check for next variable(if present)
-					result += CHARSTRING(var)+CHARSTRING(replace_ENV_VAR(temp));
+					result += CHARSTRING(var)+CHARSTRING(temp2=replace_ENV_VAR(temp));
+          free(temp2);
 				} else {
 					//Enviroment variable was not found
-					TTCN_warning("No enviroment variable with name: %s", (char*)(const char*)evar_name);
+					TTCN_warning("No enviroment variable with name: %s", (const char*)evar_name);
 					//skip the undefined variable and search for the next (if present)
-					result += CHARSTRING(2,"${")+CHARSTRING(evar_name)+CHARSTRING(replace_ENV_VAR(temp));
+					result += CHARSTRING(2,"${")+CHARSTRING(evar_name)+CHARSTRING(temp2=replace_ENV_VAR(temp));
+          free(temp2);
 				};
 			} else {
 				//'${' found, but no } => possibly not an enviroment variable
 				//search for next variable (if present)
-				result += CHARSTRING(2,"${")+CHARSTRING(replace_ENV_VAR(var));
+				result += CHARSTRING(2,"${")+CHARSTRING(temp2=replace_ENV_VAR(var));
+        free(temp2);
 			};
 		
 		//variable is in $... format 
@@ -1019,13 +1023,15 @@ char* replace_ENV_VAR(char* string){
 					
 					if(value != NULL){
 						//insert value and check for next variable(if present)
-						result += CHARSTRING(value)+CHARSTRING(replace_ENV_VAR(temp));
+						result += CHARSTRING(value)+CHARSTRING(temp2=replace_ENV_VAR(temp));
+            free(temp2);
 						break;
 					} else {
 						//Enviroment variable was not found
-						TTCN_warning("No enviroment variable with name: %s", (char*)(const char*)evar_name);
+						TTCN_warning("No enviroment variable with name: %s", (const char*)evar_name);
 						//search for next variable (if present)
-						result += CHARSTRING(1,"$")+CHARSTRING(evar_name)+CHARSTRING(replace_ENV_VAR(temp));
+						result += CHARSTRING(1,"$")+CHARSTRING(evar_name)+CHARSTRING(temp2=replace_ENV_VAR(temp));
+            free(temp2);
 						break;
 					};
 				};
@@ -1041,7 +1047,7 @@ char* replace_ENV_VAR(char* string){
 						result += CHARSTRING(value);
 					} else {
 						//Enviroment variable was not found
-						TTCN_warning("No enviroment variable with name: %s", (char*)(const char*)evar_name);
+						TTCN_warning("No enviroment variable with name: %s", (const char*)evar_name);
 						result += CHARSTRING(1,"$")+CHARSTRING(evar_name);
 					};
 				};
@@ -1049,7 +1055,7 @@ char* replace_ENV_VAR(char* string){
 		};
 	};
 	
-	return (char*)(const char*)result;
+	return strdup((const char*)result);
 }
 
 BOOLEAN SQL__Functions::ef__SQL__Execute (const CHARSTRING& pl__sql__file, 

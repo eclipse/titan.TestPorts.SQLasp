@@ -13,7 +13,7 @@
 //
 //  File:               SQL_interface.hh
 //  Description:        SQL test port source
-//  Rev:                R4A
+//  Rev:                R5B
 //  Prodnr:             CNL 113 760
 // 
 
@@ -24,7 +24,7 @@ class SQL_engine_base;
 
 typedef SQL_engine_base* (*new_engine_func)();
 
-typedef enum { No_Engine=0,SQLite_engine=1,MySQL_engine=2} engine_types;
+typedef enum { No_Engine=0,SQLite_engine=1,MySQL_engine=2,OraSQL_engine=3} engine_types;
 
 class SQL_Engine_register_data {
 public:

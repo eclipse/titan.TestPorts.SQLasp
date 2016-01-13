@@ -13,7 +13,7 @@
 //
 //  File:               SQLasp_PT.hh
 //  Description:        SQL test port source
-//  Rev:                R4A
+//  Rev:                R5B
 //  Prodnr:             CNL 113 760
 // 
 
@@ -22,7 +22,7 @@
 #define SQLasp__PT_HH
 
 #include "SQL_PortTypes.hh"
-#define DEFINED_ENGINES 2
+#define DEFINED_ENGINES 3
 
 namespace SQL_engine{
 class SQL_engine_base;

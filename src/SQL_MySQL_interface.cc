@@ -13,7 +13,7 @@
 //
 //  File:               SQL_MySQL_interface.cc
 //  Description:        SQL test port source
-//  Rev:                R4A
+//  Rev:                R5B
 //  Prodnr:             CNL 113 760
 // 
 

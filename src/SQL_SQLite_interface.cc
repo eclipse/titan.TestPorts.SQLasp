@@ -13,7 +13,7 @@
 //
 //  File:               SQL_SQLite_interface.cc
 //  Description:        SQL test port SQLite interface source
-//  Rev:                R4A
+//  Rev:                R5B
 //  Prodnr:             CNL 113 760
 // 
 #include "SQL_interface.hh"

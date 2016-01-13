@@ -13,7 +13,7 @@
 //
 //  File:               SQL_Functions.ttcn
 //  Description:        
-//  Rev:                R4A
+//  Rev:                R5B
 //  Prodnr:             CNL 113 760
 //
 //
@@ -539,6 +539,6 @@ private external function ef_SQL_strcmp(in charstring pl_string1, in charstring 
 
 }//end of module
 with {
-extension "version R4A"
+extension "version R5B"
 }
 
