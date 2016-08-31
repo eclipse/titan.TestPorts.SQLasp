@@ -3150,7 +3150,7 @@ char *SQL_parser_text;
 ******************************************************************************/
 //
 //  File:               SQL_parser.l
-//  Rev:                R5B
+//  Rev:                R6A
 //  Prodnr:             CNL 113 760
 //
 #include "SQL_parser_.tab.h"

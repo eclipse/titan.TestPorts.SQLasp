@@ -13,7 +13,7 @@
 //
 //  File:               SQL_interface.hh
 //  Description:        SQL test port source
-//  Rev:                R5B
+//  Rev:                R6A
 //  Prodnr:             CNL 113 760
 // 
 

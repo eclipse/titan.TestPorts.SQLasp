@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
- Copyright (c) 2015 Ericsson
+ Copyright (c) 2016 Ericsson
 
   All rights reserved. This program and the accompanying materials
   are made available under the terms of the Eclipse Public License v1.0
@@ -10,7 +10,7 @@
 
    File:               SQLasp_CNL113760.tpd
    Description:        tpd project file
-   Rev:                R5B
+   Rev:                R6A
    Prodnr:             CNL 113 760
 
  -->
@@ -23,6 +23,7 @@
     <FileResource projectRelativePath="src/SQL.grp" relativeURI="src/SQL.grp"/>
     <FileResource projectRelativePath="src/SQL_Functions.ttcn" relativeURI="src/SQL_Functions.ttcn"/>
     <FileResource projectRelativePath="src/SQL_MySQL_interface.cc" relativeURI="src/SQL_MySQL_interface.cc"/>
+    <FileResource projectRelativePath="src/SQL_OraSQL_interface.cc" relativeURI="src/SQL_OraSQL_interface.cc"/>
     <FileResource projectRelativePath="src/SQL_PortTypes.ttcn" relativeURI="src/SQL_PortTypes.ttcn"/>
     <FileResource projectRelativePath="src/SQL_SQLite_interface.cc" relativeURI="src/SQL_SQLite_interface.cc"/>
     <FileResource projectRelativePath="src/SQL_interface.hh" relativeURI="src/SQL_interface.hh"/>
@@ -34,7 +35,7 @@
     <FileResource projectRelativePath="src/SQLasp_PT.hh" relativeURI="src/SQLasp_PT.hh"/>
     <FileResource projectRelativePath="src/lex.SQL_parser_.c" relativeURI="src/lex.SQL_parser_.c"/>
   </Files>
-  <ActiveConfiguration>Default</ActiveConfiguration>
+  <ActiveConfiguration>MySQL_sqlite</ActiveConfiguration>
   <Configurations>
     <Configuration name="Default">
       <ProjectProperties>
@@ -43,7 +44,6 @@
           <GNUMake>true</GNUMake>
           <incrementalDependencyRefresh>true</incrementalDependencyRefresh>
           <targetExecutable>bin/SQLasp_CNL113760</targetExecutable>
-          <addSourceLineInfo>true</addSourceLineInfo>
           <linkerLibraries>
             <listItem>mysqlclient</listItem>
             <listItem>sqlite3</listItem>
@@ -53,6 +53,132 @@
           <workingDirectory>bin</workingDirectory>
         </LocalBuildSettings>
       </ProjectProperties>
+      <FileProperties>
+        <FileResource>
+          <FilePath>src/SQL_OraSQL_interface.cc</FilePath>
+          <FileProperties>
+            <ExcludeFromBuild>true</ExcludeFromBuild>
+          </FileProperties>
+        </FileResource>
+      </FileProperties>
+    </Configuration>
+    <Configuration name="no_engine">
+      <ProjectProperties>
+        <MakefileSettings>
+          <generateInternalMakefile>true</generateInternalMakefile>
+          <GNUMake>true</GNUMake>
+          <incrementalDependencyRefresh>true</incrementalDependencyRefresh>
+          <targetExecutable>bin/SQLasp_CNL113760</targetExecutable>
+        </MakefileSettings>
+        <LocalBuildSettings>
+          <workingDirectory>bin</workingDirectory>
+        </LocalBuildSettings>
+      </ProjectProperties>
+      <FileProperties>
+        <FileResource>
+          <FilePath>src/SQL_MySQL_interface.cc</FilePath>
+          <FileProperties>
+            <ExcludeFromBuild>true</ExcludeFromBuild>
+          </FileProperties>
+        </FileResource>
+        <FileResource>
+          <FilePath>src/SQL_OraSQL_interface.cc</FilePath>
+          <FileProperties>
+            <ExcludeFromBuild>true</ExcludeFromBuild>
+          </FileProperties>
+        </FileResource>
+        <FileResource>
+          <FilePath>src/SQL_SQLite_interface.cc</FilePath>
+          <FileProperties>
+            <ExcludeFromBuild>true</ExcludeFromBuild>
+          </FileProperties>
+        </FileResource>
+      </FileProperties>
+    </Configuration>
+    <Configuration name="MySQL_sqlite">
+      <ProjectProperties>
+        <MakefileSettings>
+          <generateInternalMakefile>true</generateInternalMakefile>
+          <GNUMake>true</GNUMake>
+          <incrementalDependencyRefresh>true</incrementalDependencyRefresh>
+          <targetExecutable>bin/SQLasp_CNL113760</targetExecutable>
+          <linkerLibraries>
+            <listItem>mysqlclient</listItem>
+            <listItem>sqlite3</listItem>
+          </linkerLibraries>
+        </MakefileSettings>
+        <LocalBuildSettings>
+          <workingDirectory>bin</workingDirectory>
+        </LocalBuildSettings>
+      </ProjectProperties>
+      <FileProperties>
+        <FileResource>
+          <FilePath>src/SQL_OraSQL_interface.cc</FilePath>
+          <FileProperties>
+            <ExcludeFromBuild>true</ExcludeFromBuild>
+          </FileProperties>
+        </FileResource>
+      </FileProperties>
+    </Configuration>
+    <Configuration name="Sqlite">
+      <ProjectProperties>
+        <MakefileSettings>
+          <generateInternalMakefile>true</generateInternalMakefile>
+          <GNUMake>true</GNUMake>
+          <incrementalDependencyRefresh>true</incrementalDependencyRefresh>
+          <targetExecutable>bin/SQLasp_CNL113760</targetExecutable>
+          <linkerLibraries>
+            <listItem>sqlite3</listItem>
+          </linkerLibraries>
+        </MakefileSettings>
+        <LocalBuildSettings>
+          <workingDirectory>bin</workingDirectory>
+        </LocalBuildSettings>
+      </ProjectProperties>
+      <FileProperties>
+        <FileResource>
+          <FilePath>src/SQL_MySQL_interface.cc</FilePath>
+          <FileProperties>
+            <ExcludeFromBuild>true</ExcludeFromBuild>
+          </FileProperties>
+        </FileResource>
+        <FileResource>
+          <FilePath>src/SQL_OraSQL_interface.cc</FilePath>
+          <FileProperties>
+            <ExcludeFromBuild>true</ExcludeFromBuild>
+          </FileProperties>
+        </FileResource>
+      </FileProperties>
+    </Configuration>
+    <Configuration name="MySQL">
+      <ProjectProperties>
+        <MakefileSettings>
+          <generateInternalMakefile>true</generateInternalMakefile>
+          <GNUMake>true</GNUMake>
+          <incrementalDependencyRefresh>true</incrementalDependencyRefresh>
+          <targetExecutable>bin/SQLasp_CNL113760</targetExecutable>
+          <linkerLibraries>
+            <listItem>mysqlclient</listItem>
+          </linkerLibraries>
+        </MakefileSettings>
+        <LocalBuildSettings>
+          <workingDirectory>bin</workingDirectory>
+        </LocalBuildSettings>
+      </ProjectProperties>
+      <FileProperties>
+        <FileResource>
+          <FilePath>src/SQL_OraSQL_interface.cc</FilePath>
+          <FileProperties>
+            <ExcludeFromBuild>true</ExcludeFromBuild>
+          </FileProperties>
+        </FileResource>
+        <FileResource>
+          <FilePath>src/SQL_SQLite_interface.cc</FilePath>
+          <FileProperties>
+            <ExcludeFromBuild>true</ExcludeFromBuild>
+          </FileProperties>
+        </FileResource>
+      </FileProperties>
     </Configuration>
   </Configurations>
 </TITAN_Project_File_Information>

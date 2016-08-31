@@ -13,7 +13,7 @@
 //
 //  File:               SQL_PortTypes.ttcn
 //  Description:        SQL test port source
-//  Rev:                R5B
+//  Rev:                R6A
 //  Prodnr:             CNL 113 760
 // 
 
@@ -109,7 +109,7 @@ type port SQLasp_PT procedure {
 
 } with {
   extension "requiresTITAN CRL 113 200/1 R8H"
-  extension "version R5B" 
+  extension "version R6A" 
 }
 
 
