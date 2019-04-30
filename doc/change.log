@@ -1,0 +1,9 @@
+= SQL Test Port for TTCN-3 Toolset with TITAN, Change log
+:author: Gábor Szalai
+:toc: left
+
+== Changes
+
+=== R6B
+
+Added "connect_timeout" parameter to the MySQL connector

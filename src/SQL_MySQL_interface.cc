@@ -74,6 +74,8 @@ int SQL_MySQL_engine::open_database_connection(const SQL_config_data* config_dat
  unsigned long client_flag=0;
  const char *char_set=NULL;
  const char *auto_reconnect=NULL;
+ unsigned int conn_timeout=5;
+
  log(SQLTP_LOG_DEBUG,"Creating new database connection.");
  
  if(!mysql_init(&sql_handle)){
@@ -109,10 +111,13 @@ int SQL_MySQL_engine::open_database_connection(const SQL_config_data* config_dat
    if(!strcasecmp(config_data[i].name,"char_set")){
      mysql_options(&sql_handle, MYSQL_SET_CHARSET_NAME,config_data[i].value );
      char_set=config_data[i].value;
-   }
+   } else
    if(!strcasecmp(config_data[i].name, "auto_reconnect")) {
      mysql_options(&sql_handle, MYSQL_OPT_RECONNECT, config_data[i].value);
      auto_reconnect = config_data[i].value;
+   } else 
+   if(!strcasecmp(config_data[i].name, "connect_timeout")){
+     conn_timeout=atoi(config_data[i].value);
    }
    i++;
  }
@@ -127,6 +132,10 @@ int SQL_MySQL_engine::open_database_connection(const SQL_config_data* config_dat
  log(SQLTP_LOG_DEBUG,"client_flag: %lu",client_flag);
  log(SQLTP_LOG_DEBUG,"char_set: %s",char_set?char_set:"Not specified");
  log(SQLTP_LOG_DEBUG,"Auto-reconnect: %s", (auto_reconnect) ? auto_reconnect : "Not specified");
+ log(SQLTP_LOG_DEBUG,"Connect timeout: %u",conn_timeout);
+
+ mysql_options(&sql_handle, MYSQL_OPT_CONNECT_TIMEOUT, &conn_timeout);
+
 
  if(!mysql_real_connect(&sql_handle,host,user,passwd,db,port,unix_socket,client_flag)){
    err.error_code=4;

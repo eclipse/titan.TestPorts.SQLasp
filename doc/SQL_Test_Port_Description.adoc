@@ -1,24 +1,6 @@
----
-Author: Gábor Szalai
-Version: 1551-CNL 113 760, Rev. C
-Date: 2015-08-17
-
----
 = SQL Test Port for TTCN-3 Toolset with TITAN Description
 :author: Gábor Szalai
-:revnumber: 1551-CNL 113 760, Rev. C
-:revdate: 2015-08-17
-:toc:
-
-== About This Document
-
-=== How to Read This Document
-
-This is the User’s Guide for the SQL test port. The SQL test port is developed for the TTCN-3 Toolset with TITAN. This document is intended to be read together with Function Specification <<_3, [3]>>.
-
-=== Prerequisite Knowledge
-
-The knowledge of the TITAN TTCN-3 Test Executor <<_2, [2]>> and the TTCN-3 language <<_1, [1]>> is essential. Basic knowledge of the SQL is valuable when reading this document.
+:toc: left
 
 == System Requirements
 
@@ -35,8 +17,6 @@ NOTE: This version of the test port is not compatible with TITAN releases earlie
 == Fundamental Concepts
 
 The SQL test port executes SQL statement against the SQL database. The SQL test port is able to handle different SQL engines and databases, and provides a unified interface towards them.
-
-= The Test Port
 
 == Overview
 
@@ -114,6 +94,9 @@ The name of the character set to use as the default character set.
 
 * `auto_reconnect` +
 Enable or disable automatic reconnection to the server if the connection is found to have been lost. Reconnect has been off by default since MySQL 5.0.3; this option is new in 5.0.13 and provides a way to set reconnection behavior explicitly.
+
+* `connect_timeout` +
+The connect timeout in seconds. Default value is 5 seconds.
 
 === SQLite Connector
 
@@ -373,9 +356,9 @@ The "demo" directory of the deliverable contains the file __SQL_demo.ttcn__. It 
 
 The __SQL_Parser.ttcn__ shows how to use the rollback feature.
 
-= Function Specification
+== Function Specification
 
-== Implementation
+=== Implementation
 
 The SQL Test port consists of two layers:
 
@@ -385,40 +368,40 @@ Responsible for the common functions of the SQL test port. The common part provi
 * SQL engine connectors: +
 Provides a connection towards the specific SQL engines. Handles the SQL engine specific functions.
 
-== Configuration
+=== Configuration
 
 The configuration of the SQL test port is done via the run time ASPs
 
-== Start Procedure
+=== Start Procedure
 
 During the start up of the SQL test port, the SQL engine connectors register their handlers in the common part.
 
 [[sending-receiving-sql-asps]]
-== Sending/Receiving SQL ASPs
+=== Sending/Receiving SQL ASPs
 
 The common part handles the ASP call from the test suite, and forwards them to the appropriate SQL engine connector. The SQL engine connector connects to the database, executes the SQL query, and send back the result of the query to the common part. The common part converts the result into TTCN-3 data and forwards to the test suite.
 
-=== Closing Down
+==== Closing Down
 
 The SQL test port closes down the active SQL connections.
 
-=== Logging
+==== Logging
 
 The logging printouts will be directed to the RTE log file.
 
-=== Error Handling
+==== Error Handling
 
 Erroneous behavior detected during runtime is shown on the console and directed into the RTE log file. The following two types of messages are taken care of:
 
 * Errors: information about errors detected is provided. If an error occurs the execution will stop immediately.
 * Warnings: information about warnings detected is provided. The execution continues after the warning is shown.
 
-== Functions and Rollback
+=== Functions and Rollback
 
 In __SQL_Functions.ttcn__ there are some useful functions to use the SQL TestPort.
 
 [[f-connect]]
-=== `f_connect`
+==== `f_connect`
 
 [source,subs="quotes"]
 ----
@@ -428,7 +411,7 @@ In __SQL_Functions.ttcn__ there are some useful functions to use the SQL TestPor
 Can connect the testport to the connection.
 
 [[f-query]]
-=== `f_query`
+==== `f_query`
 
 [source,subs="quotes"]
 ----
@@ -437,7 +420,7 @@ Can connect the testport to the connection.
 Runs the query on the testport with the given connection id.
 
 [[f-disconnect]]
-=== `f_disconnect`
+==== `f_disconnect`
 
 [source,subs="quotes"]
 ----
@@ -446,7 +429,7 @@ Runs the query on the testport with the given connection id.
 Disconnects the port with the given connection id.
 
 [[ef-sql-execute]]
-=== `ef_SQL_Execute`
+==== `ef_SQL_Execute`
 
 [source,subs="quotes"]
 ----
@@ -464,7 +447,7 @@ Execute and generate the rollback queries. You have to specify the used tables�
 `pl_result_record`- holds the record of the original queries result data. If the statement won’t update, insert or delete anything, it won’t register neither in the result record nor in the result.
 
 [[f-sql-rollback]]
-=== `f_SQL_Rollback`
+==== `f_SQL_Rollback`
 
 [source,subs="quotes"]
 ----
@@ -473,11 +456,11 @@ Execute and generate the rollback queries. You have to specify the used tables�
 
 If you have the rollback queries you can run them with this function. From the last to the first. If you caught an exception while the rollback, in the `pl_queries` the function will return the remaining queries. If it is empty, the rollback was complete.
 
-= Error Messages
+== Error Messages
 
 The following Error messages are generated by the test port. Description is also included if the message is not self-evident.
 
-== SQLite Interface
+=== SQLite Interface
 
 `*You have to specify positive max_busy_retries parameter.*`
 
@@ -511,7 +494,7 @@ Only SQLITE_ROW result type can be returned after SQL SELECT.
 
 Could not start query.
 
-== MySQL Interface
+=== MySQL Interface
 
 `*ERROR: Can not initialize the MySQL library. The mysql_init returned NULL.*`
 
@@ -535,21 +518,18 @@ The error message is returned by MySQL. See <<_4, [4]>> for details.
 
 MySQL can return with other error messages. They can come directly from the MySQL server, so for more details see <<_4, [4]>>.
 
-= Warning Messages
+== Warning Messages
 
 The following Warning Message is generated by the test port. Description is also included if the message is not self-evident.
 
-== SQLite interface
+=== SQLite interface
 
 `*_Database is busy. <repetition_number>. Retry: <query>._*`
 
 When the database is busy the test port retries the operation. By default the test port retries until success. If the `max_busy_retries` parameter is set then the attempts will be limited by this number.
 
-= Terminology
 
-No specific terminology is used.
-
-= Abbreviations
+== Abbreviations
 
 ASP:: Abstract Service Primitive
 
@@ -561,7 +541,7 @@ TTCN-3:: Testing and Test Control Notation version 3
 
 SQL:: Structured Query Language
 
-= References
+== References
 
 [[_1]]
 [1] ETSI ES 201 873-1 (2002) +
