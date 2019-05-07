@@ -134,7 +134,11 @@ int SQL_MySQL_engine::open_database_connection(const SQL_config_data* config_dat
  log(SQLTP_LOG_DEBUG,"Auto-reconnect: %s", (auto_reconnect) ? auto_reconnect : "Not specified");
  log(SQLTP_LOG_DEBUG,"Connect timeout: %u",conn_timeout);
 
- mysql_options(&sql_handle, MYSQL_OPT_CONNECT_TIMEOUT, &conn_timeout);
+ mysql_options(&sql_handle, MYSQL_OPT_CONNECT_TIMEOUT,
+#if MYSQL_VERSION_ID < 50500 
+ (const char*)
+#endif
+  &conn_timeout);
 
 
  if(!mysql_real_connect(&sql_handle,host,user,passwd,db,port,unix_socket,client_flag)){

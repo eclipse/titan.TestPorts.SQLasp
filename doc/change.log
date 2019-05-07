@@ -7,3 +7,8 @@
 === R6B
 
 Added "connect_timeout" parameter to the MySQL connector
+
+=== R6C
+
+MySQL library backward compatibility update.
+
